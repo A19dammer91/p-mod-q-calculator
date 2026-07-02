@@ -25,7 +25,7 @@ This means **N = 10²³** takes the same time as **N = 100**.
 
 ## How to use
 
-1. Open the [live calculator](https://a19dammer91.github.io/-p-mod-q-calculator/)
+1. Open the [live calculator](https://a19dammer91.github.io/p-mod-q-calculator/
 2. Enter coefficients **p** and **q** (default: 19, 9)
 3. Enter any number **N** (supports arbitrarily large integers)
 4. Click **COMPUTE REPRESENTATIONS**
