@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Calculator for the p ≡ 1 (mod q) framework. Computes the number of representations N = pA + qB in strict O(1) time using digital roots (dr) as starting point A0 = N mod q. Supports arbitrarily large numbers via BigInt. Developed by Bilal el Issaoui, Amsterdam 2026.">
+<title>p ≡ 1 (mod q) · Framework · O(1) Representations</title>
+<style>
+  :root {
+    --bg:#ffffff; --surface:#f8f9fc; --panel:#ffffff; --border:#d0d8e8;
+    --text:#1a1f2e; --muted:#6b7a99;
+    --navy:#1a3a5c; --marine:#2563a8;
+    --red-bright:#b83040; --success:#2d7a4a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:monospace; min-height:100vh; padding:20px; }
+  .container { max-width:880px; margin:0 auto; }
+
+  .header { text-align:center; margin-bottom:30px; }
+  .header h1 { font-size:clamp(1.5rem,4vw,2.4rem); font-weight:700; color:var(--navy); }
+  .header-line { margin-top:8px; font-size:11px; letter-spacing:0.15em; color:var(--marine); text-transform:uppercase; }
+
+  .section-divider { display:flex; align-items:center; gap:12px; margin:30px 0 18px; }
+  .section-divider::before, .section-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+  .section-divider-text { font-size:10px; letter-spacing:0.2em; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:12px; }
+  .config-label { font-size:9px; letter-spacing:0.2em; color:var(--muted); text-transform:uppercase; }
+  .coeff-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
+  .coeff-box { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px; text-align:center; }
+  .coeff-box.valid { border-color:var(--success); background:rgba(45,122,74,0.08); }
+  .coeff-name { font-size:9px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
+  .coeff-input { width:100%; background:transparent; border:none; font-size:20px; font-weight:700; color:var(--navy); text-align:center; outline:none; }
+
+  .verify-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  @media(max-width:520px){ .verify-row { grid-template-columns:1fr; } }
+  .verify-box { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px; }
+  .verify-box.ok { border-color:var(--success); background:rgba(45,122,74,0.04); }
+  .verify-box.fail { border-color:var(--red-bright); background:rgba(184,48,64,0.04); }
+  .verify-title { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; font-weight:600; }
+  .verify-box.ok .verify-title { color:var(--success); }
+  .verify-box.fail .verify-title { color:var(--red-bright); }
+  .verify-detail { font-size:10px; margin-top:3px; }
+
+  .preset-row { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+  .preset-btn { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:10px; color:var(--muted); cursor:pointer; font-family:monospace; }
+  .preset-btn:hover { border-color:var(--marine); color:var(--marine); }
+
+  .input-row { display:flex; gap:6px; flex-wrap:wrap; }
+  .n-input { flex:1; min-width:140px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:monospace; font-size:16px; color:var(--text); outline:none; }
+  .calc-btn { background:var(--marine); color:#fff; border:none; border-radius:6px; padding:10px 18px; font-family:monospace; font-size:11px; font-weight:700; letter-spacing:0.05em; cursor:pointer; }
+  .calc-btn:active { opacity:0.8; }
+
+  .dr-panel { border-radius:10px; padding:18px; margin-bottom:12px; text-align:center; border:1.5px solid; background:var(--surface); }
+  .dr-value { font-size:clamp(2rem,8vw,3.5rem); font-weight:900; line-height:1; word-break:break-all; }
+  .dr-chain { font-size:10px; margin-top:6px; opacity:.7; word-break:break-all; }
+  .dr-formula { font-size:9px; margin-top:4px; opacity:.6; word-break:break-all; }
+
+  .count-big { font-size:clamp(1.2rem,4vw,1.8rem); font-weight:900; color:var(--navy); word-break:break-all; }
+  .count-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+
+  .n-value { font-size:clamp(0.9rem,2.5vw,1.2rem); font-weight:700; color:var(--navy); word-break:break-all; }
+
+  .rep-row { display:grid; grid-template-columns:25px 1fr 1fr 1fr 1fr auto; gap:4px; padding:3px 0; border-bottom:1px solid rgba(26,58,92,0.06); font-size:10px; }
+
+  .formula-box { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:12px; margin-top:10px; font-size:11px; line-height:1.6; }
+  .formula-box code { background:rgba(37,99,168,0.08); padding:1px 4px; border-radius:3px; font-size:10px; }
+
+  .chain-flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px; margin-bottom:10px; }
+  .chain-node { border:1.5px solid; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:600; }
+
+  .footer { text-align:center; font-size:9px; color:var(--muted); margin-top:20px; border-top:1px solid var(--border); padding-top:15px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <h1>p ≡ 1 (mod q) · Framework</h1>
+    <div class="header-line">O(1) Representations · A₀ = dr(N) · p ≡ 1 (mod q)</div>
+  </header>
+
+  <div class="section-divider">
+    <span class="section-divider-text">Configuration · p ≡ 1 (mod q)</span>
+  </div>
+
+  <div class="panel">
+    <div class="config-label">Coefficients</div>
+    <div class="coeff-grid" id="coeffGrid"></div>
+    <div class="verify-row">
+      <div class="verify-box ok" id="foundationBox">
+        <div class="verify-title">✓ Foundation</div>
+        <div class="verify-detail" id="foundationDetail">19 mod 9 = 1</div>
+      </div>
+      <div class="verify-box ok" id="chainBox">
+        <div class="verify-title">✓ Chain</div>
+        <div class="verify-detail" id="chainDetail">9</div>
+      </div>
+    </div>
+    <div class="preset-row">
+      <span class="config-label" style="margin-right:4px;">Presets</span>
+      <button class="preset-btn" onclick="window.loadPreset([19,9])">[19,9]</button>
+      <button class="preset-btn" onclick="window.loadPreset([21,4])">[21,4]</button>
+      <button class="preset-btn" onclick="window.loadPreset([33,16])">[33,16]</button>
+      <button class="preset-btn" onclick="window.loadPreset([100,33])">[100,33]</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="input-row">
+      <input type="text" class="n-input" id="nInput" placeholder="N" onkeydown="if(event.key==='Enter')window.calculate()">
+      <button class="calc-btn" onclick="window.calculate()">COMPUTE REPRESENTATIONS</button>
+    </div>
+  </div>
+
+  <div id="results" style="display:none;">
+    <div class="dr-panel" id="drPanel">
+      <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;opacity:.7;margin-bottom:4px;">A₀ = dr(N)</div>
+      <div class="dr-value" id="drValue">—</div>
+      <div class="dr-chain" id="drChain"></div>
+      <div class="dr-formula" id="drFormula"></div>
+    </div>
+
+    <div class="panel">
+      <div class="count-big" id="countBig">—</div>
+      <div class="count-label" id="countLabel">NUMBER OF REPRESENTATIONS</div>
+    </div>
+
+    <div class="panel">
+      <div class="config-label" style="margin-bottom:4px;">N</div>
+      <div class="n-value" id="nDisplay">—</div>
+    </div>
+
+    <div class="panel">
+      <div class="config-label" style="margin-bottom:6px;">N = p·A + q·B · First 9 representations</div>
+      <div id="repRows"></div>
+    </div>
+
+    <div class="panel">
+      <div class="config-label" style="margin-bottom:8px;">Chain · Digital Root</div>
+      <div class="chain-flow" id="chainFlow"></div>
+      <div class="chain-legend" id="chainLegend"></div>
+    </div>
+  </div>
+
+  <div class="formula-box" style="margin-top:30px;">
+    <strong>O(1) Formula:</strong> <code>R₂(N) = ⌊(⌊N/p⌋ − (N mod q)) / q⌋ + 1</code><br>
+    <strong>Condition:</strong> p ≡ 1 (mod q) → p = k·q + 1<br>
+    <strong>Starting point:</strong> A₀ = N mod q = dr(N) → steps of +q
+  </div>
+
+  <div class="footer">Bilal el Issaoui · Amsterdam · 2026 · p ≡ 1 (mod q) Framework</div>
+</div>
+
+<script>
+var C_NAMES = ['p','q'];
+var DR_COLORS = ['','#e63946','#f4a261','#e9c46a','#2a9d8f','#264653','#e76f51','#f72585','#4cc9f0','#d4a373'];
+var c = [19, 9];
+
+// === BigInt utilities for arbitrary precision ===
+
+function toBig(s) {
+  s = String(s).trim().replace(/\s/g, '').replace(/\./g, '');
+  if (!s) return null;
+  try { return BigInt(s); } catch(e) { return null; }
+}
+
+function bigStr(n) {
+  return n.toString();
+}
+
+function bigMod(a, b) {
+  var r = a % b;
+  return r < 0n ? r + b : r;
+}
+
+function bigDiv(a, b) {
+  if (a < 0n) {
+    return -((-a + b - 1n) / b);
+  }
+  return a / b;
+}
+
+function bigDsum(n) {
+  var s = bigStr(n < 0n ? -n : n);
+  var sum = 0;
+  for (var i = 0; i < s.length; i++) sum += parseInt(s[i]);
+  return sum;
+}
+
+function bigDr(n) {
+  if (n === 0n) return 9;
+  var r = Number(bigMod(n, 9n));
+  return r === 0 ? 9 : r;
+}
+
+function bigRchain(n) {
+  var chain = [bigStr(n)];
+  var cur = n;
+  while (cur >= 10n) {
+    cur = BigInt(bigDsum(cur));
+    chain.push(bigStr(cur));
+  }
+  return chain;
+}
+
+function fmtBig(n) {
+  var s = bigStr(n);
+  if (s.length <= 9) return s;
+  var prefix = s.substring(0, 5);
+  var hidden = s.length - 5;
+  return prefix + '+' + hidden;
+}
+
+function formatNumBig(n) {
+  var s = bigStr(n);
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function countR2Big(N, p, q) {
+  var a0 = bigMod(N, q);
+  var maxA = N / p;
+  if (a0 > maxA) return 0n;
+  return (maxA - a0) / q + 1n;
+}
+
+function get9RepsBig(N, p, q) {
+  var a0 = bigMod(N, q);
+  var maxA = N / p;
+  var total = countR2Big(N, p, q);
+  if (total <= 0n) return { reps: [], total: 0n };
+
+  var reps = [];
+  var a = a0;
+  var idx = 0;
+  while (a <= maxA && idx < 9) {
+    var rem = N - p * a;
+    if (rem >= 0n) {
+      var b = rem / q;
+      if (b >= 0n && q * b === rem) {
+        reps.push([a, b]);
+        idx++;
+      }
+    }
+    a += q;
+  }
+  return { reps: reps, total: total };
+}
+
+function drc(d) { return DR_COLORS[d] || '#333'; }
+
+function renderGrid() {
+  var grid = document.getElementById('coeffGrid');
+  grid.innerHTML = '';
+  for (var i = 0; i < 2; i++) {
+    var box = document.createElement('div');
+    box.className = 'coeff-box' + (i === 0 ? ' valid' : '');
+    box.innerHTML = '<div class="coeff-name">' + C_NAMES[i] + '</div>' +
+      '<input type="number" class="coeff-input" id="coeffInput' + i + '" value="' + c[i] + '" min="1" step="1">';
+    grid.appendChild(box);
+  }
+  for (var i = 0; i < 2; i++) {
+    (function(idx) {
+      var input = document.getElementById('coeffInput' + idx);
+      if (input) {
+        input.oninput = function() {
+          var val = parseInt(this.value);
+          if (!isNaN(val) && val >= 1) {
+            c[idx] = val;
+            verify();
+          }
+        };
+      }
+    })(i);
+  }
+}
+
+function verify() {
+  var fOK = (c[0] % c[1] === 1);
+  var fBox = document.getElementById('foundationBox');
+  var fDetail = document.getElementById('foundationDetail');
+  if (fOK) {
+    fBox.className = 'verify-box ok';
+    fDetail.innerHTML = '<span style="color:var(--success)">' + c[0] + ' mod ' + c[1] + ' = 1</span>';
+  } else {
+    fBox.className = 'verify-box fail';
+    fDetail.innerHTML = '<span style="color:var(--red-bright)">' + c[0] + ' mod ' + c[1] + ' = ' + (c[0] % c[1]) + '</span>';
+  }
+  document.getElementById('chainDetail').textContent = c[1];
+}
+
+function loadPreset(p) {
+  c = p.slice();
+  renderGrid();
+  verify();
+}
+window.loadPreset = loadPreset;
+
+function calculate() {
+  var raw = document.getElementById('nInput').value.trim();
+  if (raw === '') return;
+  var N = toBig(raw);
+  if (N === null || N < 0n) return;
+
+  var p = BigInt(c[0]), q = BigInt(c[1]);
+  var digitalR = bigDr(N);
+  var chain = bigRchain(N);
+  var color = drc(digitalR);
+
+  document.getElementById('results').style.display = 'block';
+
+  var drP = document.getElementById('drPanel');
+  drP.style.color = color;
+  drP.style.borderColor = color;
+  document.getElementById('drValue').textContent = digitalR;
+  document.getElementById('drChain').textContent = chain.join(' → ');
+  document.getElementById('drFormula').textContent = bigStr(N) + ' mod ' + c[1] + ' = ' + bigMod(N, q) + ' → dr = ' + digitalR;
+
+  var totalR = countR2Big(N, p, q);
+  document.getElementById('countBig').textContent = formatNumBig(totalR);
+  document.getElementById('countLabel').textContent = 'NUMBER OF REPRESENTATIONS';
+
+  document.getElementById('nDisplay').textContent = formatNumBig(N);
+
+  var repData = get9RepsBig(N, p, q);
+  var rowsDiv = document.getElementById('repRows');
+  rowsDiv.innerHTML = '';
+
+  if (repData.total === 0n) {
+    rowsDiv.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:11px;padding:10px;">No representations possible</div>';
+  } else {
+    for (var i = 0; i < repData.reps.length; i++) {
+      var rep = repData.reps[i];
+      var row = document.createElement('div');
+      var a = rep[0], b = rep[1];
+      var pa = p * a;
+      var qb = q * b;
+      row.className = 'rep-row';
+      row.innerHTML = '<span style="color:var(--muted);font-size:8px;">' + (i + 1) + '</span>' +
+        '<span style="font-weight:700;">' + fmtBig(a) + '</span>' +
+        '<span style="color:var(--muted);">' + fmtBig(b) + '</span>' +
+        '<span style="color:var(--muted);font-size:9px;">' + fmtBig(pa) + '</span>' +
+        '<span style="color:var(--muted);font-size:9px;">' + fmtBig(qb) + '</span>' +
+        '<span style="font-size:8px;">' + bigDr(a) + '·' + bigDr(b) + '</span>';
+      rowsDiv.appendChild(row);
+    }
+    if (repData.total > 9n) {
+      var info = document.createElement('div');
+      info.style.cssText = 'text-align:center;color:var(--muted);font-size:9px;margin-top:6px;';
+      info.textContent = 'Total: ' + formatNumBig(repData.total) + ' representations · First 9 shown';
+      rowsDiv.appendChild(info);
+    }
+  }
+
+  var cFlow = document.getElementById('chainFlow');
+  var cLeg = document.getElementById('chainLegend');
+  cFlow.innerHTML = '';
+  for (var i = 0; i < chain.length; i++) {
+    if (i > 0) {
+      var arr = document.createElement('span');
+      arr.style.cssText = 'color:var(--muted);font-size:10px;';
+      arr.textContent = '→';
+      cFlow.appendChild(arr);
+    }
+    var node = document.createElement('div');
+    node.className = 'chain-node';
+    var nodeVal = BigInt(chain[i]);
+    var nodeDr = bigDr(nodeVal);
+    node.style.borderColor = drc(nodeDr);
+    node.style.color = drc(nodeDr);
+    if (i === chain.length - 1) {
+      node.style.background = drc(nodeDr) + '18';
+      node.style.fontWeight = '900';
+    }
+    node.textContent = fmtBig(nodeVal);
+    cFlow.appendChild(node);
+  }
+
+  var legParts = [];
+  for (var i = 0; i < chain.length; i++) {
+    var chainVal = BigInt(chain[i]);
+    var b = (N - p * chainVal) / q;
+    if (b >= 0n && q * b === N - p * chainVal) {
+      var isA0 = (i === chain.length - 1);
+      var prefix = isA0 ? '<strong style="color:var(--marine)">A₀ = </strong>' : '';
+      legParts.push(prefix + '<span style="color:' + drc(bigDr(chainVal)) + '">' + fmtBig(chainVal) + '</span> → ' + fmtBig(chainVal) + '×' + c[0] + ' + ' + fmtBig(b) + '×' + c[1] + ' = ' + fmtBig(N));
+    }
+  }
+  cLeg.innerHTML = legParts.length ? legParts.join('<br>') : '—';
+
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.calculate = calculate;
+
+renderGrid();
+verify();
+</script>
+</body>
+</html>
