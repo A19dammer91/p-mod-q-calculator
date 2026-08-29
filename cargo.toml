@@ -1,0 +1,16 @@
+[package]
+name = "p-mod-q-calculator"
+version = "0.1.0"
+authors = ["Bilal el Issaoui"]
+edition = "2021"
+description = "Calculator for the p ≡ 1 (mod q) framework. Computes the number of representations N = pA + qB in strict O(1) time."
+license = "Apache-2.0"
+repository = "https://github.com"
+readme = "README.md"
+keywords = ["math", "modular-arithmetic", "diophantine", "bigint", "number-theory"]
+categories = ["algorithms", "science"]
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+
